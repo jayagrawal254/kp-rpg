@@ -19,14 +19,14 @@ package de.kaiserpfalzedv.rpg.core.dice.bag;
 
 import de.kaiserpfalzedv.rpg.core.dice.Die;
 import de.kaiserpfalzedv.rpg.core.dice.mat.DieResult;
-import de.kaiserpfalzedv.rpg.core.dice.mat.ImmutableDieResult;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.StringJoiner;
 
 /**
- * NumericDie -- Implements the die rolling for numeric die from 1 to {@link #max}.
+ * GenericNumericDie -- Implements the die rolling for numeric die from 1 to {@link #max}.
  *
  * @author rlichti {@literal <rlichti@kaiserpfalz-edv.de>}
  * @since 2020-08-12
@@ -53,10 +53,10 @@ public class GenericNumericDie implements Die {
     @Override
     public DieResult roll() {
         String roll = Integer.toString(rollSingle(), 10);
-        return ImmutableDieResult.builder()
-                .die(this)
-                .total(roll)
-                .rolls(roll)
+        return DieResult.builder()
+                .withDie(this)
+                .withTotal(roll)
+                .withRolls(Collections.singletonList(roll).toArray(new String[0]))
                 .build();
     }
 
@@ -76,6 +76,11 @@ public class GenericNumericDie implements Die {
         return true;
     }
 
+    @Override
+    public String getDieType() {
+        return "D" + max;
+    }
+
 
     @Override
     public final boolean equals(Object o) {
@@ -93,7 +98,7 @@ public class GenericNumericDie implements Die {
     @Override
     public final String toString() {
         return new StringJoiner(", ",
-                getClass().getSimpleName() + "[",
+                getDieType() + "[",
                 "]")
                 .add("identity=" + System.identityHashCode(this))
                 .toString();

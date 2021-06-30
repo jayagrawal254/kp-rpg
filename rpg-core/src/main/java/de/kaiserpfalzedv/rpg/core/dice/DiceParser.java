@@ -19,21 +19,20 @@ package de.kaiserpfalzedv.rpg.core.dice;
 
 import de.kaiserpfalzedv.rpg.core.dice.bag.GenericNumericDie;
 import de.kaiserpfalzedv.rpg.core.dice.mat.ExpressionTotal;
-import de.kaiserpfalzedv.rpg.core.dice.mat.ImmutableExpressionTotal;
-import de.kaiserpfalzedv.rpg.core.dice.mat.ImmutableRollTotal;
 import de.kaiserpfalzedv.rpg.core.dice.mat.RollTotal;
-import io.quarkus.runtime.StartupEvent;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import net.objecthunter.exp4j.ExpressionBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.Dependent;
-import javax.enterprise.event.Observes;
-import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
-import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,25 +43,23 @@ import java.util.regex.Pattern;
  * @since 2020-01-03
  */
 @Dependent
+@RequiredArgsConstructor(onConstructor = @__(@Inject))
+@ToString
 public class DiceParser {
     static private final Logger LOG = LoggerFactory.getLogger(DiceParser.class);
 
     static private final String DICE_PATTERN =
             "(?<pre>(([A-Za-z]+)?[(])?)?"
-            +"(?<amount>\\d+)?"
-            +"(?<type>([dD])?[A-Za-z][0-9A-Za-z]+)"
-            +"(?<post>.*)?";
+                    + "(?<amount>\\d+)?"
+                    + "(?<type>([dD])?[A-Za-z][0-9A-Za-z]+)"
+                    + "(?<post>.*)?";
 
     static private final Pattern PATTERN = Pattern.compile(DICE_PATTERN);
 
-    @Inject
-    Instance<Die> dice;
+    private final Collection<Die> dice;
 
-
-    public void startUp(@Observes StartupEvent event) {
-        ArrayList<Die> dice = new ArrayList<>();
-        this.dice.forEach(dice::add);
-
+    @PostConstruct
+    public void startUp() {
         LOG.debug("Loaded dice: {}", dice);
     }
 
@@ -72,13 +69,15 @@ public class DiceParser {
         //noinspection ConfusingArgumentToVarargsMethod
         LOG.debug("working on di(c)e roll: {}", dieString);
 
-        ImmutableRollTotal.Builder result = ImmutableRollTotal.builder();
+        RollTotal.RollTotalBuilder result = RollTotal.builder();
 
+
+        List<ExpressionTotal> expressions = new ArrayList<>();
         for (String d : dieString) {
-            parseSingleDie(d).ifPresent(result::addExpressions);
+            parseSingleDie(d).ifPresent(expressions::add);
         }
 
-        return result.build();
+        return result.withExpressions(expressions).build();
     }
 
     /**
@@ -144,9 +143,9 @@ public class DiceParser {
                 return Optional.empty();
             }
 
-            ExpressionTotal result = ImmutableExpressionTotal.builder()
-                    .rolls(die.roll(amount))
-                    .expression(expression)
+            ExpressionTotal result = ExpressionTotal.builder()
+                    .withRolls(die.roll(amount))
+                    .withExpression(expression)
                     .build();
 
             LOG.debug("Parsed die: {}", result);
@@ -159,17 +158,11 @@ public class DiceParser {
 
     private Die selectDieType(final String qualifier) {
         for (Die die : dice) {
-            LOG.trace("Checking die type: qualifier={}, die={}", die.getDieType());
+            LOG.trace("Checking die type: qualifier={}, die={}", qualifier, die.getDieType());
             if (die.getDieType().equalsIgnoreCase(qualifier))
                 return die;
         }
 
         return new GenericNumericDie(Integer.parseInt(qualifier.substring(1)));
-    }
-
-    @Override
-    public String toString() {
-        return new StringJoiner(", ", DiceParser.class.getSimpleName() + "@" + System.identityHashCode(this) + "[", "]")
-                .toString();
     }
 }
